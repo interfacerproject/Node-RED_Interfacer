@@ -14,9 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-hosp_cred_file=.creds_hosp.json
-cleaner_cred_file=.creds_clean.json
-admin_cred_file=.creds_admin.json
+cred_dir=credentials
+if [ ! -d ${cred_dir} ]
+then
+    mkdir -p ${cred_dir}
+fi
+
+hosp_cred_file=${cred_dir}/.creds_hosp.json
+cleaner_cred_file=${cred_dir}/.creds_clean.json
+admin_cred_file=${cred_dir}/.creds_admin.json
 
 admin_key="$(cat ${admin_cred_file} | jq -r '.key')"
 
@@ -72,7 +78,7 @@ fi
 my_nodered='localhost:1880/interfacer'
 
 machine=$(echo "${my_endpoint}" | sed 's/http[s]*:\/\/\(.*\)[:0-9]*\/api/\1/g')
-init_file="init_${machine}.json"
+init_file="${cred_dir}/init_${machine}.json"
 
 
 

@@ -1,94 +1,140 @@
 import ast
 import inspect
 from pathlib import Path
+from typing import Any, Optional, List, Dict, Union
+import textwrap
 
 TAG = "expose_as"
 
-def extract_interface_functions(source_code):
+class InterfaceFunction:
+    file_to_read = None
+
+    def __init__(self, node: ast.FunctionDef, method: str, file_to_read:str):
+        self.node = node
+        self.name = node.name
+        self.args = node.args.args
+        self.method = method
+        InterfaceFunction.file_to_read = file_to_read
+    
+    def get_docstring(self):
+        ret = ast.get_docstring(self.node) or ""
+        return repr(ret)
+
+    @staticmethod
+    def resolve_type(t):
+        if t is None:
+            return "Any"
+        t_str = ast.unparse(t)
+
+        # Add support for nested dicts and lists
+        if t_str == "dict":
+            return "Dict[str, Any]"
+        if t_str == "list":
+            return "List[Any]"
+        if t_str.startswith("Dict["):
+            return t_str  # e.g., Dict[str, Dict[str, Any]]
+        if t_str.startswith("List["):
+            return t_str
+        return t_str
+
+    def generate_wrapper(self) -> str:
+        arg_names = [arg.arg for arg in self.args if arg.arg != 'self']
+        
+        if self.method == 'post':    
+            # args_unpack = ", ".join(f"{arg}=payload.{arg}" for arg in arg_names)
+            args_copy = "\n    ".join(f"{arg} = copy.deepcopy(payload.{arg})" for arg in arg_names)
+            return_keys = ", ".join(f'\"{arg}\": {arg}' for arg in arg_names)
+            code = f"""
+@app.{self.method.lower()}("/{self.name}")
+def route_{self.name}(payload: {self.name.title()}Input):
+    ''{self.get_docstring()}''
+    import copy
+    {args_copy}
+    result = None
+    try:
+        result = {self.file_to_read}.{self.name}({', '.join(arg_names)})
+    except Exception as e:
+        return {{"error": str(e)}}
+    return {{"result": result if result is not None else {{ {return_keys} }} }}
+"""
+        else:
+            code = f"""
+@app.{self.method.lower()}("/{self.name}")
+def route_{self.name}(payload: {self.name.title()}Input):
+    ''{self.get_docstring()}''
+    result = None
+    try:
+        result = {self.file_to_read}.{self.name}({', '.join(arg_names)})
+    except Exception as e:
+        return {{"error": str(e)}}
+    return {{"result": result}}
+"""
+        return code
+
+
+def extract_interface_functions(file_to_read):
+    """
+        Parses the file and extracts function tagged for the interface
+    """
+    source_code = file_to_read.read_text()
     tree = ast.parse(source_code)
     lines = source_code.splitlines()
     functions = []
 
-    for node in tree.body:
+    for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             comment_line = lines[node.lineno - 2].strip()
             if comment_line.startswith(f"# {TAG}"):
                 parts = comment_line.split()
                 method = parts[2] if len(parts) > 2 else "post"
-                functions.append((node, method))
+                functions.append(InterfaceFunction(node, method, file_to_read.stem))
     return functions
 
-def get_type(t):
-    return ast.unparse(t) if t else "Any"
+def generate_input_models(funcs: List[InterfaceFunction]) -> str:
+    models = []
+    for func in funcs:
+        fields = [f"    {arg.arg}: Any" for arg in func.args if arg.arg != 'self']
+        model = f"""
+class {func.name.title()}Input(BaseModel):
+{chr(10).join(fields)}
+"""
+        models.append(textwrap.dedent(model))
+    return "\n".join(models)
 
-def get_docstring(fn_node):
-    return ast.get_docstring(fn_node) or ""
 
-def build_fastapi_code(functions, filename):
+def build_fastapi_code(functions):
     code = [
         "from fastapi import FastAPI",
         "from pydantic import BaseModel, Field",
-        "from typing import Any, Optional, List, Dict",
-        f"import {filename}",
+        "from typing import Any, Optional, List, Dict, Union",
+        f"import {InterfaceFunction.file_to_read}",
         "",
         "app = FastAPI()",
         "",
     ]
+    code.append(generate_input_models(functions))
 
-    for fn, method in functions:
-        name = fn.name
-        # breakpoint()
-        docstring = repr(get_docstring(fn))
-        args = [(a.arg, get_type(a.annotation), a) for a in fn.args.args]
-        returns = get_type(fn.returns)
-
-        # Create input model for POST
-        if method == "post":
-            code.append(f"class {name.title()}Input(BaseModel):")
-            for arg_name, arg_type, arg_obj in args:
-                default = (
-                    f" = {ast.unparse(arg_obj.default)}"
-                    if hasattr(arg_obj, "default") and not isinstance(arg_obj.default, ast.Constant)
-                    else ""
-                )
-                if default or arg_obj.arg != "self":
-                    code.append(f"    {arg_name}: {arg_type}{default}")
-            code.append("")
-
-        # Output model
-        code.append(f"class {name.title()}Output(BaseModel):")
-        code.append(f"    result: {returns}\n")
-
-        # API route
-        route = f"@app.{method}('/{name}', response_model={name.title()}Output)"
-        code.append(route)
-
-        # Function signature
-        if method == "get":
-            params = ", ".join([
-                f"{arg}: {typ}"
-                for arg, typ, _ in args
-                if arg != "self"
-            ])
-            call_args = ", ".join([arg for arg, _, _ in args])
-            code.append(f"def {name}_endpoint({params}):")
-        else:
-            call_args = ", ".join([f"input.{arg}" for arg, _, _ in args])
-            code.append(f"def {name}_endpoint(input: {name.title()}Input):")
-
-        # Docstring
-        code.append(f"    ''{docstring}''")
-        code.append(f"    result = {filename}.{name}({call_args})")
-        code.append(f"    return {{'result': result}}\n")
+    for func in functions:
+        wrapper = func.generate_wrapper()
+        code.append(textwrap.dedent(wrapper))
 
     return "\n".join(code)
+    
 
 def main(input:str, output:str):
     # breakpoint()
-    source_code = Path(input).read_text()
-    functions = extract_interface_functions(source_code)
-    fastapi_code = build_fastapi_code(functions, Path(input).stem)
-    Path(output).write_text(fastapi_code)
+    file_to_read = Path(input)
+    if not file_to_read.exists():
+        raise Exception(f"Cannot read file {input}")
+    if 'wrapped' not in output:
+        raise Exception(f"Refuse to overwrite file {output}")
+    
+    functions = extract_interface_functions(file_to_read)
+    fastapi_code = build_fastapi_code(functions)
+        
+
+    wrapped_file = Path(output)
+    wrapped_file.write_text(fastapi_code)
     print(f"✅ FastAPI wrapper generated in {output}")
 
 
@@ -121,3 +167,9 @@ if __name__ == "__main__":
         exit(-1)
 
     main(args.input, args.output)
+
+
+# if_lib
+# generate_random_challenge, read_HMAC, read_keypair, get_id_person, get_location_id, \
+# get_unit_id, get_resource_spec_id, get_resource, get_process, create_event, make_transfer, reduce_resource, set_user_location
+

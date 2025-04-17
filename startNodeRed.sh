@@ -14,8 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-cont_name=nodered_interfacer
+if [ "${1}" = 'docker' ]
+then
+    cont_name=nodered_interfacer
 
-docker rm -f ${cont_name}
+    docker rm -f ${cont_name}
 
-docker run -it -p 1880:1880 -v ${PWD}:/data --name ${cont_name} nodered/node-red
+    docker run -it -p 1880:1880 -v ${PWD}:/data --name ${cont_name} nodered/node-red
+else
+    ./node_modules/.bin/node-red --settings ./nodered_conf/settings.js
+fi
