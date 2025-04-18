@@ -30,3 +30,4 @@ signFile.zen
 .creds_clean.json
 .creds_hosp.json
 python_wrapped.py
+try.py

@@ -228,6 +228,7 @@ if __name__ == "__main__":
 
 
 # if_lib
+# set_user_location, get_unit_id, get_resource_spec_id, get_resource, get_process, create_event, make_transfer, reduce_resource
+
 # generate_random_challenge, read_HMAC, read_keypair, get_id_person, get_location_id, \
 # get_unit_id, get_resource_spec_id, get_resource, get_process, create_event, make_transfer, reduce_resource, set_user_location
-
