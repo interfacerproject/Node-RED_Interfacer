@@ -164,7 +164,7 @@ def build_fastapi_code(functions):
     code = [
         "from fastapi import FastAPI",
         "from pydantic import BaseModel, Field",
-        "from typing import Any, Optional, List, Dict, Union",
+        "from typing import Any, Optional, List, Dict, Union, Tuple",
         f"import {InterfaceFunction.file_to_read}",
         "",
         "app = FastAPI()",
@@ -228,7 +228,8 @@ if __name__ == "__main__":
 
 
 # if_lib
-# set_user_location, get_unit_id, get_resource_spec_id, get_resource, get_process, create_event, make_transfer, reduce_resource
-
 # generate_random_challenge, read_HMAC, read_keypair, get_id_person, get_location_id, \
 # get_unit_id, get_resource_spec_id, get_resource, get_process, create_event, make_transfer, reduce_resource, set_user_location
+
+# if_dpp
+# trace_query, check_traces, er_before, get_dpp
