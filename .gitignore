@@ -29,5 +29,3 @@ signFile.zen
 .creds_admin.json
 .creds_clean.json
 .creds_hosp.json
-python_wrapped.py
-try.py
