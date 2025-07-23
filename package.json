@@ -2,16 +2,19 @@
     "name": "reflow-nodered",
     "description": "A Node-RED Project",
     "version": "0.0.1",
-    "dependencies": {
-        "node-red": "^4.0.9",
-        "node-red-contrib-graphql": "^1.3.0",
-        "node-red-dashboard": "^3.1.2",
-        "zenroom": "^2.2.3-1ebd999"
-    },
     "node-red": {
         "settings": {
             "flowFile": "flows.json",
             "credentialsFile": "flows_cred.json"
         }
+    },
+    "dependencies": {
+        "@cgjgh/node-red-dashboard-2-ui-state-timeline": "^0.0.11",
+        "@flowfuse/node-red-dashboard": "^1.25.0",
+        "node-red": "^4.0.9",
+        "node-red-contrib-graphql": "^2.2.0",
+        "node-red-contrib-image-tools": "^2.1.1",
+        "node-red-contrib-qrcode-generator": "^0.4.0",
+        "zenroom": "^5.24.3"
     }
 }

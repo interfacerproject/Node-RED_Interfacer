@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2021-2023 Dyne.org foundation <foundation@dyne.org>.
 #
