@@ -25,5 +25,6 @@ then
     docker run -it -p 1880:1880 -v ${PWD}:/data --name ${cont_name} nodered/node-red
 else
     # https://nodered.org/docs/getting-started/local
-    ./node_modules/.bin/node-red --settings ./nodered_conf/settings.js
+    [ ! -v NODERED_PORT ] && NODERED_PORT=1880
+    ./node_modules/.bin/node-red --port ${NODERED_PORT} --settings ./nodered_conf/settings.js
 fi
